@@ -29,10 +29,10 @@ class BM25:
 
     def calculate_avgdl(self):
         s = sum([len(chunk['tokens']) for chunk in self.chunks])
-        self.avgdl =  s / len(self.chunks)
+        self.avgdl = s / len(self.chunks)
 
-        print(f"---> {len(self.chunks)}")
-        print(f"s: {s}")
+        # print(f"---> {len(self.chunks)}")
+        # print(f"s: {s}")
         return self.avgdl
 
     def calculate_TF(self, token, chunk):
@@ -49,7 +49,7 @@ class BM25:
         N = len(self.chunks)
         nt = len(self.freq.get(token, []))
 
-        return math.log((N - nt + 0.5) / nt + 0.5)
+        return math.log((N - nt + 0.5) / (nt + 0.5))
 
     def score(self, query, chunk):
         score = 0
@@ -57,11 +57,11 @@ class BM25:
             score += self.calculate_IDF(token) * self.calculate_TF(token, chunk)
         return score
 
-    def get_scores(self, query):
+    def get_scores(self, query, k):
         scores = []
-        for chunk in self.chunks:
-            scores.append(self.score(query, chunk))
-        return scores
+        for index,chunk  in enumerate(self.chunks):
+            scores.append((index, self.score(query, chunk)))
+        return sorted(scores, key=lambda chunk:chunk[1], reverse=True)[:k]
             
 # bm = BM25(corpus)
 # bm.calculate_freq()
