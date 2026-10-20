@@ -3,8 +3,7 @@ import tree_sitter_python as py_lang
 import uuid
 
 class CodeChunker:
-    def __init__(self, max_chunk_size):
-        self.max_chunk_size = max_chunk_size
+    def __init__(self):
         self.source = None
         self.language = Language(py_lang.language())
         self.parser = Parser(self.language)
@@ -21,7 +20,7 @@ class CodeChunker:
     def byte_to_char_index(self, byte_index):
         return len(self.source[:byte_index].decode())
     
-    def extract_nodes(self, node):
+    def extract_nodes(self, node, max_chunk_size):
         nodes = []
 
         for child in node.named_children:
@@ -29,7 +28,7 @@ class CodeChunker:
             text = self.source[child.start_byte: child.end_byte].decode()
             size = len(text)
 
-            if size <= self.max_chunk_size:
+            if size <= max_chunk_size:
                 start = self.byte_to_char_index(child.start_byte)
                 end = self.byte_to_char_index(child.end_byte)
 
@@ -45,7 +44,7 @@ class CodeChunker:
 
         return nodes
 
-    def build_chunks(self, file_path):
+    def build_chunks(self, file_path, max_chunk_size):
 
         self.build_tree(file_path)
         nodes = self.extract_nodes(self.tree.root_node)
@@ -61,7 +60,7 @@ class CodeChunker:
 
                 check = len(buffer + nodes[j]['text'])
 
-                if check >= self.max_chunk_size - 1:
+                if check >= max_chunk_size - 1:
                     break
 
                 buffer += " " + nodes[j]['text']
@@ -79,10 +78,4 @@ class CodeChunker:
             i = j
 
 
-
-# chunker = CodeChunker(200)
-
-# chunks1 = chunker.build_chunks("src/chunkers/code.py")
-# # chunks2 = chunker.build_chunks("src/chunkers/code.py")
-# print(chunks1)
 

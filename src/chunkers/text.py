@@ -1,16 +1,14 @@
 import uuid
 
 class TextChunker:
-    def __init__(self, max_chunk_size):
-        self.max_chunk_size = max_chunk_size
 
-    def build_chunks(self, file_path):
+    def build_chunks(self, file_path, max_chunk_size):
 
         with open(file_path, "r") as file:
             source = file.read()
 
         start = 0
-        end = self.max_chunk_size
+        end = max_chunk_size
 
         while start < len(source):
 
@@ -36,9 +34,5 @@ class TextChunker:
             })
 
             start = end
-            end += self.max_chunk_size
+            end += max_chunk_size
 
-# chunker = TextChunker("chunkers/test.md", 100)
-# chunker.build_chunks()
-# for chunk in chunker.chunks:
-#     print(chunk)

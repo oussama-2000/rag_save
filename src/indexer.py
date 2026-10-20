@@ -9,11 +9,11 @@ import json
 
 
 class Indexer:
-    def __init__(self, sources_directory_path, max_chunk_size):
+    def __init__(self, sources_directory_path):
         self.source_paths = []
         self.sources_directory_path = Path(sources_directory_path)
-        self.text_chunker = TextChunker(max_chunk_size)
-        self.code_chunker = CodeChunker(max_chunk_size)
+        self.text_chunker = TextChunker()
+        self.code_chunker = CodeChunker()
         self.chunks = []
         self.tokenized_chunks = [] # [{id: chunk_id, tokens: [tokens]}]
         self.bm25 = None
@@ -26,15 +26,15 @@ class Indexer:
             if path.suffix.lower() in [".py", ".txt", ".md"]:
                 self.source_paths.append(path)
 
-    def chunk(self):
+    def chunk(self, max_chunk_size):
         self.set_source_paths()
 
         for path in self.source_paths:
             if path.suffix.lower() in [".txt", ".md"]:
-                self.chunks.extend(self.text_chunker.build_chunks(path))
+                self.chunks.extend(self.text_chunker.build_chunks(path, max_chunk_size))
 
             if path.suffix.lower() == ".py":
-                self.chunks.extend(self.code_chunker.build_chunks(path))
+                self.chunks.extend(self.code_chunker.build_chunks(path, max_chunk_size))
 
 
     def tokenize(self, text):
@@ -48,7 +48,7 @@ class Indexer:
 
         return clean_tokens
 
-    def tokenize_chunks(self):
+    def build(self):
         for chunk in self.chunks:
             self.tokenized_chunks.append({"id": chunk['id'], "tokens": self.tokenize(chunk['text'])})
 
@@ -79,6 +79,11 @@ class Indexer:
         self.bm25.avgdl = self.avgdl
         self.bm25.freq = self.tokens_frequ
 
+    def ingest(self, max_chunk_size):
+        self.chunk(max_chunk_size)
+        self.build()
+        self.save()
+
     def search(self, query, k):
         if k <= len(self.chunks):
             scores = self.bm25.get_scores(self.tokenize(query))[:k]
@@ -88,9 +93,8 @@ class Indexer:
         dataset_dir = Path(dataset_path)
         dataset_files = dataset_dir.rglob("*.json")
 
-        student_search_results: StudentSearchResults = {}
+        search_results = []
         for file in dataset_files:
-            search_results: list[MinimalSearchResults] = []
             with open(file, "r") as dataset:
                 rag_questions = RagDataset(**json.load(dataset)).rag_questions
 
@@ -101,25 +105,31 @@ class Indexer:
                     search_result["retrieved_sources"] = self.search(question.question, 1)
                     search_result["storing_file"] = file.name
                     search_results.append(MinimalSearchResults(**search_result))
-        
-            student_search_results["search_results"] = search_results
-            student_search_results["k"] = k
 
-        return StudentSearchResults(**student_search_results)
+        return StudentSearchResults(search_results=search_results, k=k)
 
     def save_search_result(self, search_result: StudentSearchResults, save_directory="data/search_results", k=1):
 
         output = {} # {file: {search_results:result, k:k}}
-        test = set()
         for result in search_result.search_results:
-            test.add(result.storing_file)
-            # output[result.storing_file] = {}
-            # output[result.storing_file]["result"] = result
-            # output[result.storing_file]["k"] = k
+
+            output[result.storing_file] = output.get(result.storing_file, [])
+
+            
+            output[result.storing_file].append({
+                    "question_id": result.question_id,
+                    "question": result.question,
+                    "retriveved_sources": [dict(source) for source in result.retrieved_sources]
+                }
+            )
+
+        Path(save_directory).mkdir(exist_ok=True)
+        for file in output.keys():
+            with open(f"{save_directory}/{file}", "w") as output_file:
+                inp = {"search_results": output[file], "k": k}
+                json.dump(inp, output_file, indent=4)
 
 
-        # print(output.keys())
-        print(test)
 
             
         
