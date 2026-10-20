@@ -25,6 +25,7 @@ class MinimalSearchResults(BaseModel):
     question_id: str
     question: str
     retrieved_sources: List[MinimalSource]
+    storing_file: str
 
 class MinimalAnswer(MinimalSearchResults):
     answer: str

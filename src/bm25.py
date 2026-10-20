@@ -1,8 +1,8 @@
-corpus = [
-    {"id": 1, "tokens": ['what', 'is', 'is', 'rag', '?']},
-    {"id": 2, "tokens": ['how', 'is', 'rag', 'it', 'works', '?']},
-    {"id": 3, "tokens": ['python', 'contains', 'a', 'lot', 'of', 'build-in', 'functions']}
-]
+# corpus = [
+#     {"id": 1, "tokens": ['what', 'is', 'is', 'rag', '?']},
+#     {"id": 2, "tokens": ['how', 'is', 'rag', 'it', 'works', '?']},
+#     {"id": 3, "tokens": ['python', 'contains', 'a', 'lot', 'of', 'build-in', 'functions']}
+# ]
 
 import math
 
@@ -31,8 +31,6 @@ class BM25:
         s = sum([len(chunk['tokens']) for chunk in self.chunks])
         self.avgdl = s / len(self.chunks)
 
-        # print(f"---> {len(self.chunks)}")
-        # print(f"s: {s}")
         return self.avgdl
 
     def calculate_TF(self, token, chunk):
@@ -57,11 +55,11 @@ class BM25:
             score += self.calculate_IDF(token) * self.calculate_TF(token, chunk)
         return score
 
-    def get_scores(self, query, k):
+    def get_scores(self, query):
         scores = []
         for index,chunk  in enumerate(self.chunks):
             scores.append((index, self.score(query, chunk)))
-        return sorted(scores, key=lambda chunk:chunk[1], reverse=True)[:k]
+        return sorted(scores, key=lambda chunk:chunk[1], reverse=True)
             
 # bm = BM25(corpus)
 # bm.calculate_freq()

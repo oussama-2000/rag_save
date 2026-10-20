@@ -3,8 +3,9 @@ from chunkers.code import CodeChunker
 from chunkers.text import TextChunker
 import pickle
 import re
-from models import MinimalSource
+from models import MinimalSource, RagDataset, MinimalSearchResults, StudentSearchResults
 from bm25 import BM25
+import json
 
 
 class Indexer:
@@ -78,10 +79,50 @@ class Indexer:
         self.bm25.avgdl = self.avgdl
         self.bm25.freq = self.tokens_frequ
 
-    def search(self, query):
-        scores = self.bm25.get_scores(self.tokenize(query), 1)
-        print(self.chuks[])
+    def search(self, query, k):
+        if k <= len(self.chunks):
+            scores = self.bm25.get_scores(self.tokenize(query))[:k]
+            return [self.chunks[score[0]] for score in scores]
 
+    def search_dataset(self, dataset_path="data/datasets_public/public/UnansweredQuestions", k=1):
+        dataset_dir = Path(dataset_path)
+        dataset_files = dataset_dir.rglob("*.json")
+
+        student_search_results: StudentSearchResults = {}
+        for file in dataset_files:
+            search_results: list[MinimalSearchResults] = []
+            with open(file, "r") as dataset:
+                rag_questions = RagDataset(**json.load(dataset)).rag_questions
+
+                for question in rag_questions:
+                    search_result: MinimalSearchResults = {}
+                    search_result["question_id"] = question.question_id
+                    search_result["question"] = question.question
+                    search_result["retrieved_sources"] = self.search(question.question, 1)
+                    search_result["storing_file"] = file.name
+                    search_results.append(MinimalSearchResults(**search_result))
+        
+            student_search_results["search_results"] = search_results
+            student_search_results["k"] = k
+
+        return StudentSearchResults(**student_search_results)
+
+    def save_search_result(self, search_result: StudentSearchResults, save_directory="data/search_results", k=1):
+
+        output = {} # {file: {search_results:result, k:k}}
+        test = set()
+        for result in search_result.search_results:
+            test.add(result.storing_file)
+            # output[result.storing_file] = {}
+            # output[result.storing_file]["result"] = result
+            # output[result.storing_file]["k"] = k
+
+
+        # print(output.keys())
+        print(test)
+
+            
+        
 
 
 indexer = Indexer("data/raw/vllm-0.10.1", 2000)
@@ -92,4 +133,8 @@ indexer.tokenize_chunks()
 
 indexer.save()
 indexer.load()
-indexer.search("what Vulnerabilities cause")
+# print(
+#     indexer.search("what Vulnerabilities cause", 2)
+# )
+student_search_results = indexer.search_dataset()
+indexer.save_search_result(student_search_results)
