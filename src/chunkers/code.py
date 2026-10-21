@@ -27,6 +27,7 @@ class CodeChunker:
 
             text = self.source[child.start_byte: child.end_byte].decode()
             size = len(text)
+            
 
             if size <= max_chunk_size:
                 start = self.byte_to_char_index(child.start_byte)
@@ -39,7 +40,7 @@ class CodeChunker:
                 })
             else:
                 nodes.extend(
-                    self.extract_nodes(child)
+                    self.extract_nodes(child, max_chunk_size)
                 )
 
         return nodes
@@ -47,7 +48,7 @@ class CodeChunker:
     def build_chunks(self, file_path, max_chunk_size):
 
         self.build_tree(file_path)
-        nodes = self.extract_nodes(self.tree.root_node)
+        nodes = self.extract_nodes(self.tree.root_node, max_chunk_size)
 
         i = 0
         while i < len(nodes):
@@ -58,18 +59,19 @@ class CodeChunker:
             j = i + 1
             while j < len(nodes):
 
-                check = len(buffer + nodes[j]['text'])
+                check = nodes[j]['end'] - start
 
                 if check >= max_chunk_size - 1:
                     break
-
+                
                 buffer += " " + nodes[j]['text']
+
                 end = nodes[j]['end']
                 j += 1
 
             yield ({
                 "id": f"{file_path}{start}",
-                "file_path": file_path.name,
+                "file_path": str(file_path),
                 "first_character_index": start,
                 "last_character_index": end,
                 "text": buffer

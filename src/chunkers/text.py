@@ -27,7 +27,7 @@ class TextChunker:
 
             yield ({
                 "id": f"{file_path}{start}",
-                "file_path": file_path.name,
+                "file_path": str(file_path),
                 "first_character_index": start,
                 "last_character_index": end,
                 "text": text

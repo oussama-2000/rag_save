@@ -9,7 +9,7 @@ import json
 
 
 class Indexer:
-    def __init__(self, sources_directory_path):
+    def __init__(self, sources_directory_path: str):
         self.source_paths = []
         self.sources_directory_path = Path(sources_directory_path)
         self.text_chunker = TextChunker()
@@ -19,6 +19,7 @@ class Indexer:
         self.bm25 = None
         self.avgdl = 0
         self.tokens_frequ = None
+        self.stop_words = []
 
     def set_source_paths(self):
         files_path = self.sources_directory_path.rglob("*")
@@ -26,7 +27,7 @@ class Indexer:
             if path.suffix.lower() in [".py", ".txt", ".md"]:
                 self.source_paths.append(path)
 
-    def chunk(self, max_chunk_size):
+    def chunk(self, max_chunk_size: int):
         self.set_source_paths()
 
         for path in self.source_paths:
@@ -37,18 +38,21 @@ class Indexer:
                 self.chunks.extend(self.code_chunker.build_chunks(path, max_chunk_size))
 
 
-    def tokenize(self, text):
+    def tokenize(self, text: str):
         tokens = re.split(r"[\W_]+", text.lower())
         clean_tokens = []
-
+        
         for token in tokens:
-            if len(token) < 3 or not token:
+            if len(token) < 3 or not token or token in self.stop_words:
                 continue
             clean_tokens.append(token.strip())
 
         return clean_tokens
 
     def build(self):
+        with open("src/stop_words.json", "r") as stop_words_file:
+            self.stop_words = json.load(stop_words_file)["data"]
+
         for chunk in self.chunks:
             self.tokenized_chunks.append({"id": chunk['id'], "tokens": self.tokenize(chunk['text'])})
 
@@ -57,8 +61,10 @@ class Indexer:
         self.tokens_frequ = self.bm25.calculate_freq()
 
     
-    def save(self, save_path="data/processed/indexed_chunks"):
-        with open(save_path, "wb") as storage:
+    def save(self):
+        Path("data/processed").mkdir(exist_ok=True)
+
+        with open("data/processed/indexed_chunks", "wb") as storage:
             pickle.dump({
                     "chunks": [MinimalSource(**chunk) for chunk in self.chunks],
                     "tokenized_chunks": self.tokenized_chunks,
@@ -66,8 +72,8 @@ class Indexer:
                     "tokens_frequ": self.tokens_frequ,
                 }, storage)
 
-    def load(self, dist_path="data/processed/indexed_chunks"):
-        with open(dist_path, "rb") as storage:
+    def load(self):
+        with open("data/processed/indexed_chunks", "rb") as storage:
             data = pickle.load(storage)
 
         self.chunks = data['chunks']
@@ -79,17 +85,20 @@ class Indexer:
         self.bm25.avgdl = self.avgdl
         self.bm25.freq = self.tokens_frequ
 
-    def ingest(self, max_chunk_size):
+    def ingest(self, max_chunk_size: int):
         self.chunk(max_chunk_size)
         self.build()
         self.save()
 
-    def search(self, query, k):
-        if k <= len(self.chunks):
+    def search(self, query: str, k: int):
+
+        if k < len(self.chunks):
             scores = self.bm25.get_scores(self.tokenize(query))[:k]
             return [self.chunks[score[0]] for score in scores]
+        
 
-    def search_dataset(self, dataset_path="data/datasets_public/public/UnansweredQuestions", k=1):
+
+    def search_dataset(self, dataset_path: str, k: int):
         dataset_dir = Path(dataset_path)
         dataset_files = dataset_dir.rglob("*.json")
 
@@ -99,16 +108,16 @@ class Indexer:
                 rag_questions = RagDataset(**json.load(dataset)).rag_questions
 
                 for question in rag_questions:
-                    search_result: MinimalSearchResults = {}
+                    search_result = {}
                     search_result["question_id"] = question.question_id
                     search_result["question"] = question.question
-                    search_result["retrieved_sources"] = self.search(question.question, 1)
+                    search_result["retrieved_sources"] = self.search(question.question, k)
                     search_result["storing_file"] = file.name
                     search_results.append(MinimalSearchResults(**search_result))
 
         return StudentSearchResults(search_results=search_results, k=k)
 
-    def save_search_result(self, search_result: StudentSearchResults, save_directory="data/search_results", k=1):
+    def save_search_result(self, search_result: StudentSearchResults, save_directory: str):
 
         output = {} # {file: {search_results:result, k:k}}
         for result in search_result.search_results:
@@ -119,32 +128,27 @@ class Indexer:
             output[result.storing_file].append({
                     "question_id": result.question_id,
                     "question": result.question,
-                    "retriveved_sources": [dict(source) for source in result.retrieved_sources]
+                    "retrieved_sources": [dict(source) for source in result.retrieved_sources]
                 }
             )
 
         Path(save_directory).mkdir(exist_ok=True)
         for file in output.keys():
             with open(f"{save_directory}/{file}", "w") as output_file:
-                inp = {"search_results": output[file], "k": k}
+                inp = {"search_results": output[file], "k": search_result.k}
                 json.dump(inp, output_file, indent=4)
 
 
+# indexer = Indexer("data/raw/vllm-0.10.1", 2000)
+# indexer.chunk()
 
-            
-        
+# indexer.tokenize_chunks()
+# # print(len(indexer.tokenized_chunks))
 
-
-indexer = Indexer("data/raw/vllm-0.10.1", 2000)
-indexer.chunk()
-
-indexer.tokenize_chunks()
-# print(len(indexer.tokenized_chunks))
-
-indexer.save()
-indexer.load()
-# print(
-#     indexer.search("what Vulnerabilities cause", 2)
-# )
-student_search_results = indexer.search_dataset()
-indexer.save_search_result(student_search_results)
+# indexer.save()
+# indexer.load()
+# # print(
+# #     indexer.search("what Vulnerabilities cause", 2)
+# # )
+# student_search_results = indexer.search_dataset()
+# indexer.save_search_result(student_search_results)
