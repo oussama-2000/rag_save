@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List
 import uuid
 
-class MinimalSource(BaseModel): # done
+class MinimalSource(BaseModel):
     id: str
     file_path: str
     first_character_index: int

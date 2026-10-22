@@ -1,6 +1,5 @@
 from tree_sitter import Parser, Language
 import tree_sitter_python as py_lang
-import uuid
 
 class CodeChunker:
     def __init__(self):
