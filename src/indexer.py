@@ -91,10 +91,8 @@ class Indexer:
         self.save()
 
     def search(self, query: str, k: int):
-
-        if k < len(self.chunks):
-            scores = self.bm25.get_scores(self.tokenize(query))[:k]
-            return [self.chunks[score[0]] for score in scores]
+        scores = self.bm25.get_scores(self.tokenize(query))[:k]
+        return [self.chunks[score[0]] for score in scores]
         
 
 
@@ -138,17 +136,3 @@ class Indexer:
                 inp = {"search_results": output[file], "k": search_result.k}
                 json.dump(inp, output_file, indent=4)
 
-
-# indexer = Indexer("data/raw/vllm-0.10.1", 2000)
-# indexer.chunk()
-
-# indexer.tokenize_chunks()
-# # print(len(indexer.tokenized_chunks))
-
-# indexer.save()
-# indexer.load()
-# # print(
-# #     indexer.search("what Vulnerabilities cause", 2)
-# # )
-# student_search_results = indexer.search_dataset()
-# indexer.save_search_result(student_search_results)

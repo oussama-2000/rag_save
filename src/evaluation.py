@@ -3,9 +3,7 @@ import json
 
 
 class Recall:
-    def __init__(self):
-        pass
-
+    
     def calculate_IOU(self, source1: MinimalSource, source2: MinimalSource):
         start1 = source1["first_character_index"]
         end1 = source1["last_character_index"]
@@ -13,10 +11,11 @@ class Recall:
         start2 = source2["first_character_index"]
         end2 = source2["last_character_index"]
 
-        union = max((end2 - start1), (end1 - start2))
-        intersection = min((end1 - start2), (end2 - start1))
+        union = max(end1, end2) - min(start1, start2)
+        intersection = min(end1, end2) - max(start1, start2)
 
         return intersection / union if union else 0
+
 
     def calculate_question_recall(self, ground_truth: list[MinimalSource], retrieved: list[MinimalSource], at: int):
 
@@ -43,7 +42,7 @@ class Recall:
             if question["question_id"] == result["question_id"]:
                 recall += self.calculate_question_recall(question["sources"], result["retrieved_sources"], at)
 
-        return recall / len(dataset_ground_truth)
+        print(f"Recall@{at}: {round(recall / len(dataset_ground_truth) * 100, 1)}")
 
 
         
